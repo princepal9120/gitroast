@@ -221,10 +221,114 @@ export async function POST(req: NextRequest) {
       `${r.name}${r.description ? ` — "${r.description}"` : ""} (${r.stargazers_count}⭐, ${r.language || "?"}, pushed ${Math.floor((Date.now() - new Date(r.pushed_at).getTime()) / (1000 * 60 * 60 * 24))}d ago)`
     );
 
+    // === ALGORITHMIC BASE SCORE (ensures genuine variance per profile) ===
+    // Score = 0 (impossible to replace) → 10 (already replaced)
+    let baseScore = 5.0;
+
+    // === PENALIZE (more replaceable) ===
+    // Tutorial/learning repo ratio
+    const tutorialRatio = ownRepos.length > 0 ? suspiciousRepos.length / ownRepos.length : 0;
+    baseScore += tutorialRatio * 2.5; // up to +2.5
+
+    // High % of zero-star repos
+    const zeroStarRatio = ownRepos.length > 0 ? zeroStarRepos / ownRepos.length : 0;
+    baseScore += zeroStarRatio * 1.5; // up to +1.5
+
+    // Stale repo ratio
+    const staleRatio = ownRepos.length > 0 ? staleRepos.length / ownRepos.length : 0;
+    baseScore += staleRatio * 0.8; // up to +0.8
+
+    // Long account but few stars → wasted time
+    const expectedStarsForAge = accountAgeYears * 15;
+    if (totalStars < expectedStarsForAge) {
+      baseScore += Math.min(1.0, (expectedStarsForAge - totalStars) / expectedStarsForAge);
+    }
+
+    // Lots of forks vs own work
+    const forkRatio = repos.length > 0 ? forkRepos.length / repos.length : 0;
+    if (forkRatio > 0.4) baseScore += 0.5;
+
+    // Inactive recently
+    if (daysSinceActive > 90) baseScore += 0.5;
+    if (daysSinceActive > 180) baseScore += 0.5;
+
+    // === REWARD (less replaceable) ===
+    // Real stars signal real impact — calibrated: 250 stars = 1pt, 500 = 2pt max
+    const starBonus = Math.min(2.0, totalStars / 250);
+    baseScore -= starBonus;
+
+    // Deployed/live projects show shipping mentality
+    const deployedCount = ownRepos.filter((r) => r.homepage && r.homepage.length > 5).length;
+    baseScore -= Math.min(0.6, deployedCount * 0.15);
+
+    // Follower traction (calibrated)
+    if (user.followers > 100) baseScore -= 0.2;
+    if (user.followers > 500) baseScore -= 0.3;
+    if (user.followers > 2000) baseScore -= 0.5;
+
+    // High-signal languages (systems, infra, ML)
+    const highSignalLangs = ["Rust", "Go", "Haskell", "Erlang", "C", "C++", "Zig", "CUDA", "Assembly"];
+    const hasHighSignal = topLanguages.some((l) => highSignalLangs.some((h) => l.startsWith(h)));
+    if (hasHighSignal) baseScore -= 0.4;
+
+    // Has a personal website/blog
+    if (user.blog && user.blog.length > 5) baseScore -= 0.15;
+
+    // Recent activity shows momentum
+    if (recentActivity.length > 5) baseScore -= 0.2;
+
+    // Clamp 1.5–9.8 and round to 1 decimal
+    baseScore = Math.max(1.5, Math.min(9.8, baseScore));
+    const baseScoreRounded = Math.round(baseScore * 10) / 10;
+
+    // Sub-score bases (each independently derived)
+    const techBase = Math.max(1.5, Math.min(9.5, Math.round((
+      5.0
+      - starBonus * 0.7
+      + tutorialRatio * 1.5
+      + zeroStarRatio * 0.8
+      - (hasHighSignal ? 0.8 : 0)
+    ) * 10) / 10));
+    const aiBase = Math.max(1.5, Math.min(9.5, Math.round((
+      5.5
+      + staleRatio * 1.0
+      + (daysSinceActive > 180 ? 0.8 : 0)
+      - (recentActivity.length > 3 ? 0.4 : 0)
+      - starBonus * 0.3
+    ) * 10) / 10));
+    const moatBase = Math.max(1.5, Math.min(9.5, Math.round((
+      5.0
+      + tutorialRatio * 2.0
+      - starBonus * 0.5
+      - (deployedCount > 1 ? 0.4 : 0)
+      - (user.followers > 100 ? 0.3 : 0)
+    ) * 10) / 10));
+    const mktBase = Math.max(1.5, Math.min(9.5, Math.round((
+      5.0
+      - (user.followers > 100 ? 0.3 : 0)
+      - (user.followers > 500 ? 0.4 : 0)
+      - (user.blog ? 0.2 : 0)
+      + (zeroStarRatio * 1.0)
+      + (accountAgeYears > 3 && totalStars < 30 ? 0.8 : 0)
+      - starBonus * 0.4
+    ) * 10) / 10));
+
     // === BUILD PROMPT ===
     const prompt = `You are a brutally honest senior software engineer and tech career advisor. Your job: give this developer a REAL, HONEST assessment of their AI replaceability. Not generic cheerleading. Not hollow cruelty. Actual truth — the kind a mentor would give if they stopped sugarcoating.
 
 Read everything below carefully. Reference SPECIFIC things you see. Be like a senior dev doing a real code review of someone's career.
+
+IMPORTANT — SCORING RULES:
+The system has pre-computed algorithmic base scores from real data metrics. You MUST use these as anchors and adjust by ±1.5 max based on qualitative things you observe in READMEs and commits. Do NOT default to 7.x for everyone.
+
+ALGORITHMIC BASE SCORES (anchor these, adjust ±1.5):
+- Overall replaceability: ${baseScoreRounded}/10
+- Technical Skills: ${Math.round(techBase * 10) / 10}/10  
+- AI Adaptability: ${Math.round(aiBase * 10) / 10}/10
+- Career Moat: ${Math.round(moatBase * 10) / 10}/10
+- Market Positioning: ${Math.round(mktBase * 10) / 10}/10
+
+Your final scores should be CLOSE to these but can vary based on quality you read in the code/READMEs.
 
 ==================================================
 GITHUB PROFILE README (their "About Me" — read this first)
@@ -307,14 +411,14 @@ Scoring (0-10 where 10 = fully replaceable by AI RIGHT NOW):
 
 Return ONLY valid JSON (no markdown, no backticks, nothing else):
 {
-  "overallScore": 7.2,
-  "threatTitle": "GLORIFIED TUTORIAL COMPLETIONIST",
-  "mainRoast": "3-5 sentences. Reference specific repos, commits, their profile README claims vs reality. Honest but savage. Like a mentor who's done sugarcoating.",
+  "overallScore": ${baseScoreRounded},
+  "threatTitle": "YOUR CREATIVE TITLE HERE (ALL CAPS, 2-4 words, sardonic)",
+  "mainRoast": "3-5 sentences. Reference specific repo names, profile README claims vs reality, commit messages. Honest but savage. Like a mentor who's done sugarcoating.",
   "subScores": {
-    "technicalSkills": { "score": 6.5, "description": "One specific, honest line about what you saw in their actual code/repos" },
-    "aiAdaptability": { "score": 5.0, "description": "One specific line about how their work relates to the AI era — what they've built, what they haven't" },
-    "careerMoat": { "score": 8.1, "description": "One line about whether their portfolio shows anything distinctive or replaceable" },
-    "marketPositioning": { "score": 7.3, "description": "One line about their market value based on what you actually read" }
+    "technicalSkills": { "score": ${Math.round(techBase * 10) / 10}, "description": "One specific, honest line referencing their actual languages/repos/code quality" },
+    "aiAdaptability": { "score": ${Math.round(aiBase * 10) / 10}, "description": "One specific line about their AI-era readiness based on what you saw" },
+    "careerMoat": { "score": ${Math.round(moatBase * 10) / 10}, "description": "One line about distinctiveness — or lack thereof — based on their portfolio" },
+    "marketPositioning": { "score": ${Math.round(mktBase * 10) / 10}, "description": "One line about market value based on traction, followers, deployed work" }
   }
 }`;
 
@@ -336,14 +440,14 @@ Return ONLY valid JSON (no markdown, no backticks, nothing else):
       const topRepo = repoDetails[0];
       const profileClaim = profileReadme ? "claims to be a developer on their profile README, but" : "didn't even bother with a profile README, and";
       roastData = {
-        overallScore: 7.5,
-        threatTitle: "PROFESSIONAL REPO HOARDER",
+        overallScore: baseScoreRounded,
+        threatTitle: tutorialRatio > 0.3 ? "PROFESSIONAL TUTORIAL CONSUMER" : staleRatio > 0.5 ? "REPO ABANDONMENT ARTIST" : "GLORIFIED CODE ACCUMULATOR",
         mainRoast: `${user.name || user.login} ${profileClaim} ${user.public_repos} repos and only ${totalStars} total stars tell a different story. ${topRepo ? `Their most-starred project "${topRepo.name}" ${topRepo.stars > 0 ? `has ${topRepo.stars} stars` : "has zero stars"} — ${topRepo.description || "no description provided"}.` : ""} ${staleRepos.length > 0 ? `${staleRepos.length} repos haven't been touched in over a year.` : ""} ${daysSinceActive < 999 ? `Last GitHub activity was ${daysSinceActive} days ago.` : "No recent public activity."}`,
         subScores: {
-          technicalSkills: { score: 6.5, description: `${topLanguages[0]?.split(" ")[0] || "Unknown"} as primary language with ${zeroStarRepos} zero-star repos.` },
-          aiAdaptability: { score: 5.5, description: "No clear AI/ML integration visible in recent work." },
-          careerMoat: { score: 7.0, description: `${ownRepos.length} repos but no standout project with traction.` },
-          marketPositioning: { score: 7.5, description: `${user.followers} followers after ${accountAgeYears} years — the market hasn't noticed yet.` },
+          technicalSkills: { score: Math.round(techBase * 10) / 10, description: `${topLanguages[0]?.split(" ")[0] || "Unknown"} as primary language with ${zeroStarRepos} zero-star repos out of ${ownRepos.length}.` },
+          aiAdaptability: { score: Math.round(aiBase * 10) / 10, description: `${daysSinceActive > 90 ? `${daysSinceActive} days of inactivity` : "Recent activity"} and no clear AI-first projects visible.` },
+          careerMoat: { score: Math.round(moatBase * 10) / 10, description: `${ownRepos.length} repos, ${deployedCount} deployed, ${totalStars} total stars — the moat is shallow.` },
+          marketPositioning: { score: Math.round(mktBase * 10) / 10, description: `${user.followers} followers after ${accountAgeYears} years — ${user.followers < 50 ? "the market hasn't noticed yet" : "some traction but not breakout"}.` },
         },
       };
     }
