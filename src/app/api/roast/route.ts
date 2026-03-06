@@ -409,16 +409,17 @@ Scoring (0-10 where 10 = fully replaceable by AI RIGHT NOW):
 - Medium (5-7): Decent skills but nothing distinctive, some real projects
 - Low (0-4): Clear specialization, unique projects, things AI can't replicate
 
+The scores are ALREADY DECIDED by the algorithm — do NOT include score numbers in your response. Only write the text.
+
 Return ONLY valid JSON (no markdown, no backticks, nothing else):
 {
-  "overallScore": ${baseScoreRounded},
-  "threatTitle": "YOUR CREATIVE TITLE HERE (ALL CAPS, 2-4 words, sardonic)",
-  "mainRoast": "3-5 sentences. Reference specific repo names, profile README claims vs reality, commit messages. Honest but savage. Like a mentor who's done sugarcoating.",
-  "subScores": {
-    "technicalSkills": { "score": ${Math.round(techBase * 10) / 10}, "description": "One specific, honest line referencing their actual languages/repos/code quality" },
-    "aiAdaptability": { "score": ${Math.round(aiBase * 10) / 10}, "description": "One specific line about their AI-era readiness based on what you saw" },
-    "careerMoat": { "score": ${Math.round(moatBase * 10) / 10}, "description": "One line about distinctiveness — or lack thereof — based on their portfolio" },
-    "marketPositioning": { "score": ${Math.round(mktBase * 10) / 10}, "description": "One line about market value based on traction, followers, deployed work" }
+  "threatTitle": "YOUR CREATIVE TITLE HERE (ALL CAPS, 2-4 words, sardonic — e.g. 'GLORIFIED YAML MONKEY', 'PROFESSIONAL REPO HOARDER', 'TUTORIAL SPEED RUN CHAMPION')",
+  "mainRoast": "3-5 sentences. Reference specific repo names, profile README claims vs reality, actual commit messages you saw. Honest and savage. Like a mentor who's done sugarcoating.",
+  "subDescriptions": {
+    "technicalSkills": "One specific, honest line referencing their actual languages/repos/code quality you read",
+    "aiAdaptability": "One specific line about their AI-era readiness based on what you actually saw in their repos",
+    "careerMoat": "One line about distinctiveness — or lack thereof — based on their actual portfolio",
+    "marketPositioning": "One line about market value based on their traction, followers, deployed work you saw"
   }
 }`;
 
@@ -431,26 +432,49 @@ Return ONLY valid JSON (no markdown, no backticks, nothing else):
 
     const content = completion.choices[0]?.message?.content || "";
 
-    let roastData;
+    // Scores are ALWAYS algorithmic — AI only provides text
+    const topRepo = repoDetails[0];
+    const fallbackDescriptions = {
+      technicalSkills: `${topLanguages[0]?.split(" ")[0] || "Unknown"} as primary stack with ${zeroStarRepos} zero-star repos out of ${ownRepos.length}.`,
+      aiAdaptability: `${daysSinceActive > 90 ? `${daysSinceActive} days inactive` : "Recent activity"} — AI-first thinking not visible in project choices.`,
+      careerMoat: `${ownRepos.length} repos, ${deployedCount} deployed, ${totalStars} total stars — the moat is thin.`,
+      marketPositioning: `${user.followers} followers after ${accountAgeYears} years — ${user.followers < 50 ? "flying completely under the radar" : "some traction but not breakout"}.`,
+    };
+    const fallbackTitle = tutorialRatio > 0.3 ? "TUTORIAL SPEED RUN CHAMPION" : staleRatio > 0.5 ? "REPO ABANDONMENT ARTIST" : totalStars < 10 ? "INVISIBLE TO THE INTERNET" : "GLORIFIED CODE ACCUMULATOR";
+    const fallbackRoast = `${user.name || user.login} has been on GitHub for ${accountAgeYears} years and has ${totalStars} total stars across ${ownRepos.length} repos — that's ${(totalStars / Math.max(1, ownRepos.length)).toFixed(1)} stars per repo. ${topRepo ? `Their standout project "${topRepo.name}" ${topRepo.stars > 0 ? `has ${topRepo.stars} stars` : "has zero stars"}.` : ""} ${staleRepos.length > 5 ? `${staleRepos.length} repos haven't been touched in over a year.` : ""} ${suspiciousRepos.length > 3 ? `The tutorial graveyard (${suspiciousRepos.slice(0, 3).join(", ")}) speaks volumes.` : ""}`;
+
+    let aiText: { threatTitle?: string; mainRoast?: string; subDescriptions?: Record<string, string> } = {};
     try {
       const jsonMatch = content.match(/\{[\s\S]*\}/);
       if (!jsonMatch) throw new Error("No JSON found");
-      roastData = JSON.parse(jsonMatch[0]);
+      aiText = JSON.parse(jsonMatch[0]);
     } catch {
-      const topRepo = repoDetails[0];
-      const profileClaim = profileReadme ? "claims to be a developer on their profile README, but" : "didn't even bother with a profile README, and";
-      roastData = {
-        overallScore: baseScoreRounded,
-        threatTitle: tutorialRatio > 0.3 ? "PROFESSIONAL TUTORIAL CONSUMER" : staleRatio > 0.5 ? "REPO ABANDONMENT ARTIST" : "GLORIFIED CODE ACCUMULATOR",
-        mainRoast: `${user.name || user.login} ${profileClaim} ${user.public_repos} repos and only ${totalStars} total stars tell a different story. ${topRepo ? `Their most-starred project "${topRepo.name}" ${topRepo.stars > 0 ? `has ${topRepo.stars} stars` : "has zero stars"} — ${topRepo.description || "no description provided"}.` : ""} ${staleRepos.length > 0 ? `${staleRepos.length} repos haven't been touched in over a year.` : ""} ${daysSinceActive < 999 ? `Last GitHub activity was ${daysSinceActive} days ago.` : "No recent public activity."}`,
-        subScores: {
-          technicalSkills: { score: Math.round(techBase * 10) / 10, description: `${topLanguages[0]?.split(" ")[0] || "Unknown"} as primary language with ${zeroStarRepos} zero-star repos out of ${ownRepos.length}.` },
-          aiAdaptability: { score: Math.round(aiBase * 10) / 10, description: `${daysSinceActive > 90 ? `${daysSinceActive} days of inactivity` : "Recent activity"} and no clear AI-first projects visible.` },
-          careerMoat: { score: Math.round(moatBase * 10) / 10, description: `${ownRepos.length} repos, ${deployedCount} deployed, ${totalStars} total stars — the moat is shallow.` },
-          marketPositioning: { score: Math.round(mktBase * 10) / 10, description: `${user.followers} followers after ${accountAgeYears} years — ${user.followers < 50 ? "the market hasn't noticed yet" : "some traction but not breakout"}.` },
-        },
-      };
+      // use fallbacks below
     }
+
+    const roastData = {
+      overallScore: baseScoreRounded,
+      threatTitle: aiText.threatTitle || fallbackTitle,
+      mainRoast: aiText.mainRoast || fallbackRoast,
+      subScores: {
+        technicalSkills: {
+          score: Math.round(techBase * 10) / 10,
+          description: aiText.subDescriptions?.technicalSkills || fallbackDescriptions.technicalSkills,
+        },
+        aiAdaptability: {
+          score: Math.round(aiBase * 10) / 10,
+          description: aiText.subDescriptions?.aiAdaptability || fallbackDescriptions.aiAdaptability,
+        },
+        careerMoat: {
+          score: Math.round(moatBase * 10) / 10,
+          description: aiText.subDescriptions?.careerMoat || fallbackDescriptions.careerMoat,
+        },
+        marketPositioning: {
+          score: Math.round(mktBase * 10) / 10,
+          description: aiText.subDescriptions?.marketPositioning || fallbackDescriptions.marketPositioning,
+        },
+      },
+    };
 
     return NextResponse.json({
       username: user.login,
