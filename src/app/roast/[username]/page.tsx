@@ -130,7 +130,7 @@ export default function RoastPage() {
   }, [username]);
 
   const shareText = data
-    ? `I got roasted by AI. My threat score: ${data.overallScore}/10 — "${data.threatTitle}" 💀\n\nGet yours at gitroast.vercel.app`
+    ? `I got roasted by AI. My threat score: ${data.overallScore}/10 — "${data.threatTitle}" 💀\n\nGet yours at gitroast-inky.vercel.app`
     : "Get your AI threat level at GitRoast";
 
   const shareOnX = () => {
@@ -138,7 +138,7 @@ export default function RoastPage() {
   };
 
   const shareOnLinkedIn = () => {
-    window.open(`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent("https://gitroast.vercel.app")}`, "_blank");
+    window.open(`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent("https://gitroast-inky.vercel.app")}`, "_blank");
   };
 
   if (loading) {
