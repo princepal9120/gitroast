@@ -149,18 +149,53 @@ export default function RoastPage() {
     fetchRoast();
   }, [username, useAuth, session]);
 
+  const [showShareModal, setShowShareModal] = useState(false);
+  const [copied, setCopied] = useState(false);
+
   const SITE_URL = "https://gitroast.princepal.dev";
   const profileUrl = `${SITE_URL}/roast/${data?.username || username}`;
-  const shareText = data
-    ? `I got roasted by AI. My threat score: ${data.overallScore}/10 — "${data.threatTitle}" 💀\n\nGet yours: ${profileUrl}`
-    : "Get your AI threat level at GitRoast";
+
+  // X/Twitter — native, lowercase, challenge format that spreads
+  const xShareText = data ? [
+    `ai just roasted my github 💀`,
+    ``,
+    `score: ${data.overallScore}/10`,
+    `verdict: "${data.threatTitle}"`,
+    ``,
+    `bet you're higher. find out:`,
+    profileUrl,
+  ].join("\n") : "";
+
+  // LinkedIn — professional framing, insight angle
+  const linkedInShareText = data ? [
+    `I ran my GitHub through an AI replaceability analyzer.`,
+    ``,
+    `Score: ${data.overallScore}/10`,
+    `Verdict: "${data.threatTitle}"`,
+    ``,
+    `${data.mainRoast.slice(0, 120)}...`,
+    ``,
+    `Curious where you stand in the AI era?`,
+    profileUrl,
+  ].join("\n") : "";
 
   const shareOnX = () => {
-    window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}`, "_blank");
+    window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(xShareText)}`, "_blank");
+    setShowShareModal(false);
   };
 
   const shareOnLinkedIn = () => {
-    window.open(`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(profileUrl)}`, "_blank");
+    // LinkedIn sharing with pre-filled text
+    const liUrl = `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(profileUrl)}&summary=${encodeURIComponent(linkedInShareText)}`;
+    window.open(liUrl, "_blank");
+    setShowShareModal(false);
+  };
+
+  const copyLink = () => {
+    navigator.clipboard.writeText(profileUrl).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
   };
 
   if (loading) {
@@ -329,29 +364,87 @@ export default function RoastPage() {
         {/* Actions */}
         <div className={`space-y-3 transition-all duration-500 delay-300 ${showContent ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"}`}>
           <button
-            onClick={() => router.push("/")}
-            className="w-full border border-gray-900 text-gray-900 py-3 text-sm font-mono uppercase tracking-widest hover:bg-gray-900 hover:text-white transition-colors"
+            onClick={() => setShowShareModal(true)}
+            className="w-full bg-gray-900 text-white py-4 text-sm font-mono uppercase tracking-widest hover:bg-gray-700 transition-colors font-bold"
           >
-            Judge Another
+            💀 SHARE YOUR VERDICT
           </button>
-
-          <p className="text-center text-xs text-gray-400 font-mono py-1">Share your fate.</p>
-
-          <div className="grid grid-cols-2 gap-3">
-            <button
-              onClick={shareOnX}
-              className="bg-gray-900 text-white py-3 text-sm font-mono uppercase tracking-widest hover:bg-gray-700 transition-colors"
-            >
-              SHARE ON X
-            </button>
-            <button
-              onClick={shareOnLinkedIn}
-              className="border border-gray-900 text-gray-900 py-3 text-sm font-mono uppercase tracking-widest hover:bg-gray-900 hover:text-white transition-colors"
-            >
-              SHARE ON LINKEDIN
-            </button>
-          </div>
+          <button
+            onClick={() => router.push("/")}
+            className="w-full border border-gray-300 text-gray-500 py-3 text-sm font-mono uppercase tracking-widest hover:border-gray-900 hover:text-gray-900 transition-colors"
+          >
+            Judge Another Profile
+          </button>
         </div>
+
+        {/* Share Modal */}
+        {showShareModal && data && (
+          <div className="fixed inset-0 bg-black/60 flex items-end sm:items-center justify-center z-50 p-4" onClick={() => setShowShareModal(false)}>
+            <div className="bg-[#F8F4ED] w-full max-w-md border border-gray-200" onClick={(e) => e.stopPropagation()}>
+              {/* Score preview card inside modal */}
+              <div className="bg-gray-900 text-white p-6 text-center">
+                <div className="flex items-center justify-center gap-4 mb-3">
+                  <div className="w-12 h-12 overflow-hidden border-2 border-gray-600">
+                    <Image src={data.avatarUrl} alt={data.name} width={48} height={48} className="w-full h-full object-cover" unoptimized />
+                  </div>
+                  <div className="text-left">
+                    <div className="text-white font-bold text-sm">{data.name}</div>
+                    <div className="text-gray-400 font-mono text-xs">@{data.username}</div>
+                  </div>
+                </div>
+                <div className={`text-5xl font-black mb-1 ${data.overallScore >= 8.5 ? "text-red-400" : data.overallScore >= 7 ? "text-orange-400" : "text-yellow-400"}`}>
+                  {data.overallScore}/10
+                </div>
+                <div className={`font-mono font-bold text-sm tracking-widest mb-2 ${data.overallScore >= 8.5 ? "text-red-400" : data.overallScore >= 7 ? "text-orange-400" : "text-yellow-400"}`}>
+                  {data.threatTitle}
+                </div>
+                <div className="text-gray-400 text-xs font-mono">gitroast.princepal.dev</div>
+              </div>
+
+              <div className="p-5 space-y-3">
+                <p className="text-xs font-mono uppercase tracking-widest text-gray-400 text-center mb-4">SHARE YOUR VERDICT</p>
+
+                {/* X share — preview the tweet text */}
+                <div className="border border-gray-200 bg-white p-3 mb-1">
+                  <p className="text-xs font-mono text-gray-400 uppercase tracking-wider mb-2">Post on X →</p>
+                  <p className="text-gray-700 text-sm whitespace-pre-line font-mono leading-relaxed">{xShareText}</p>
+                </div>
+                <button
+                  onClick={shareOnX}
+                  className="w-full bg-gray-900 text-white py-3 text-sm font-mono uppercase tracking-widest hover:bg-gray-700 transition-colors flex items-center justify-center gap-2"
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.746l7.73-8.835L1.254 2.25H8.08l4.253 5.622zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+                  </svg>
+                  POST ON X / TWITTER
+                </button>
+
+                {/* LinkedIn */}
+                <button
+                  onClick={shareOnLinkedIn}
+                  className="w-full border border-[#0077B5] text-[#0077B5] py-3 text-sm font-mono uppercase tracking-widest hover:bg-[#0077B5] hover:text-white transition-colors flex items-center justify-center gap-2"
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
+                  </svg>
+                  SHARE ON LINKEDIN
+                </button>
+
+                {/* Copy link */}
+                <button
+                  onClick={copyLink}
+                  className="w-full border border-gray-200 text-gray-600 py-3 text-sm font-mono uppercase tracking-widest hover:border-gray-900 hover:text-gray-900 transition-colors"
+                >
+                  {copied ? "✓ LINK COPIED!" : "🔗 COPY LINK"}
+                </button>
+
+                <button onClick={() => setShowShareModal(false)} className="w-full text-xs text-gray-400 font-mono py-2 hover:text-gray-700 transition-colors">
+                  close
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
       </main>
 
