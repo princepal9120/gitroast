@@ -342,7 +342,9 @@ export async function POST(req: NextRequest) {
     baseScore = Math.max(1.5, Math.min(9.8, baseScore));
     const baseScoreRounded = Math.round(baseScore * 10) / 10;
 
-    // Notable developer boosts for sub-scores
+    // Notable developer flags (used in sub-scores + prompt)
+    const isNotable = user.followers > 2000 || totalStars > 5000;
+    const isVeryNotable = user.followers > 10000 || totalStars > 20000;
     const notableBoost = isVeryNotable ? 1.5 : isNotable ? 0.7 : 0;
 
     // Sub-score bases (each independently derived)
@@ -383,10 +385,6 @@ export async function POST(req: NextRequest) {
       - starBonus * 0.4
       - notableBoost * 1.0         // notable = strong market positioning
     ) * 10) / 10));
-
-    // Notable developer flag — context for the AI
-    const isNotable = user.followers > 2000 || totalStars > 5000;
-    const isVeryNotable = user.followers > 10000 || totalStars > 20000;
 
     // === BUILD PROMPT ===
     const prompt = `You are a brutally honest senior software engineer and tech career advisor. Your job: give this developer a REAL, HONEST assessment of their AI replaceability. Not generic cheerleading. Not hollow cruelty. Actual truth — the kind a mentor would give if they stopped sugarcoating.
