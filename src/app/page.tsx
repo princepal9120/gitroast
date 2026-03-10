@@ -231,8 +231,8 @@ export default function Home() {
                     <div className="font-bold text-sm text-gray-900 truncate">{profile.name}</div>
                     <div className="text-xs text-gray-400 font-mono truncate">@{profile.username} · {profile.role}</div>
                   </div>
-                  <div className={`font-bold font-mono text-xl flex-shrink-0 ${scoreColor(profile.score)}`}>
-                    {profile.score}
+                  <div className={`font-bold font-mono text-lg flex-shrink-0 ${scoreColor(profile.score)} text-right`}>
+                    <span className="text-xs text-gray-300">~</span>{profile.score}
                   </div>
                 </div>
 

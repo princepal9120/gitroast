@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
+import Image from "next/image";
 
 interface SubScore {
   score: number;
@@ -12,6 +13,12 @@ interface RoastData {
   username: string;
   name: string;
   bio: string | null;
+  company: string | null;
+  location: string | null;
+  blog: string | null;
+  followers: number;
+  publicRepos: number;
+  totalStars: number;
   avatarUrl: string;
   overallScore: number;
   threatTitle: string;
@@ -196,14 +203,58 @@ export default function RoastPage() {
       </header>
 
       <main className="max-w-xl mx-auto px-6 py-8">
-        {/* Profile */}
-        <div className="flex items-center gap-3 mb-8">
-          <div className="w-10 h-10 bg-gray-900 text-white flex items-center justify-center font-bold text-lg rounded-sm">
-            {data.name.charAt(0).toUpperCase()}
-          </div>
-          <div>
-            <p className="font-bold text-gray-900">{data.name}</p>
-            <p className="text-sm text-gray-400 font-mono">{data.bio || "Software Engineer"}</p>
+        {/* Profile — real GitHub card */}
+        <div className="border border-gray-200 bg-white p-5 mb-6">
+          <div className="flex items-start gap-4">
+            {/* Real avatar */}
+            <div className="w-16 h-16 rounded-sm overflow-hidden bg-gray-100 border border-gray-200 flex-shrink-0">
+              <Image
+                src={data.avatarUrl}
+                alt={data.name}
+                width={64}
+                height={64}
+                className="w-full h-full object-cover"
+                unoptimized
+              />
+            </div>
+            {/* Info */}
+            <div className="flex-1 min-w-0">
+              <div className="flex items-start justify-between gap-2">
+                <div>
+                  <p className="font-bold text-gray-900 text-lg leading-tight">{data.name}</p>
+                  <p className="text-sm text-gray-400 font-mono">@{data.username}</p>
+                </div>
+                <a
+                  href={`https://github.com/${data.username}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-xs font-mono text-gray-400 hover:text-gray-700 border border-gray-200 px-2 py-1 whitespace-nowrap transition-colors"
+                >
+                  GitHub ↗
+                </a>
+              </div>
+              {data.bio && (
+                <p className="text-sm text-gray-600 mt-1.5 leading-relaxed">{data.bio}</p>
+              )}
+              {/* Stats row */}
+              <div className="flex flex-wrap gap-4 mt-3">
+                {data.company && (
+                  <span className="text-xs text-gray-400 font-mono">{data.company}</span>
+                )}
+                {data.location && (
+                  <span className="text-xs text-gray-400 font-mono">📍 {data.location}</span>
+                )}
+                <span className="text-xs text-gray-400 font-mono">
+                  <span className="text-gray-700 font-semibold">{data.followers.toLocaleString()}</span> followers
+                </span>
+                <span className="text-xs text-gray-400 font-mono">
+                  <span className="text-gray-700 font-semibold">{data.publicRepos}</span> repos
+                </span>
+                <span className="text-xs text-gray-400 font-mono">
+                  <span className="text-gray-700 font-semibold">{data.totalStars.toLocaleString()}</span> stars
+                </span>
+              </div>
+            </div>
           </div>
         </div>
 

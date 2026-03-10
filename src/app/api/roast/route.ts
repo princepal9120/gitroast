@@ -480,6 +480,12 @@ Return ONLY valid JSON (no markdown, no backticks, nothing else):
       username: user.login,
       name: user.name || user.login,
       bio: user.bio,
+      company: user.company,
+      location: user.location,
+      blog: user.blog,
+      followers: user.followers,
+      publicRepos: user.public_repos,
+      totalStars,
       avatarUrl: user.avatar_url,
       ...roastData,
     });
