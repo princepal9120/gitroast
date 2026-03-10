@@ -2,22 +2,73 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 
-const RECENTLY_JUDGED = [
-  { role: "Full Stack Dev", yoe: 4, score: 8.4, roast: "You built 47 CRUD apps and called it experience." },
-  { role: "Product Manager", yoe: 3, score: 8.1, roast: "You turned 'being in meetings' into a fucking career path." },
-  { role: "ML Engineer", yoe: 2, score: 9.1, roast: "You fine-tuned a model on 200 samples. That's just vibes with math." },
-  { role: "Frontend Dev", yoe: 7, score: 7.8, roast: "v0 does your entire sprint before you finish your standup." },
-  { role: "Data Analyst", yoe: 5, score: 8.4, roast: "Your entire career is a for-loop that Claude runs for fun." },
-  { role: "DevOps Engineer", yoe: 5, score: 6.3, roast: "Kubernetes admin in 2026 is just a glorified YAML editor." },
-  { role: "Backend Engineer", yoe: 3, score: 7.9, roast: "Your entire value prop is knowing which Stack Overflow answer to copy." },
-  { role: "QA Engineer", yoe: 4, score: 7.5, roast: "You find bugs manually. That's like washing dishes by hand in 2026." },
+// Real GitHub profiles — pre-scored with savage but accurate roast lines
+const FEATURED_PROFILES = [
+  {
+    username: "rauchg",
+    name: "Guillermo Rauch",
+    role: "CEO · Vercel",
+    score: 1.8,
+    roast: "Built the framework the entire internet runs on. AI deploys on Next.js too — you're the landlord, not the tenant.",
+  },
+  {
+    username: "gaearon",
+    name: "Dan Abramov",
+    role: "React Core Team",
+    score: 2.3,
+    roast: "Invented useEffect and then spent 5 years writing blog posts explaining why everyone used it wrong. Including you.",
+  },
+  {
+    username: "yyx990803",
+    name: "Evan You",
+    role: "Creator · Vue.js",
+    score: 1.5,
+    roast: "Built a whole framework because he wanted React without the Facebook smell. It worked. Annoyingly.",
+  },
+  {
+    username: "sindresorhus",
+    name: "Sindre Sorhus",
+    role: "OSS · 1000+ packages",
+    score: 2.1,
+    roast: "1,000+ npm packages and AI still can't replicate his taste. You install his work without knowing his name.",
+  },
+  {
+    username: "tj",
+    name: "TJ Holowaychuk",
+    role: "Creator · Express, Koa",
+    score: 1.9,
+    roast: "Built Express.js, Koa, and half the Node ecosystem — then disappeared to write Go. The most productive ghost in tech.",
+  },
+  {
+    username: "addyosmani",
+    name: "Addy Osmani",
+    role: "Engineering Manager · Google",
+    score: 2.8,
+    roast: "Been optimizing web performance since before ChatGPT knew what a Lighthouse score was. Still going.",
+  },
+  {
+    username: "kentcdodds",
+    name: "Kent C. Dodds",
+    role: "Educator · Testing/React",
+    score: 3.5,
+    roast: "Built an entire career teaching testing best practices to developers who still skip tests. Including you.",
+  },
+  {
+    username: "torvalds",
+    name: "Linus Torvalds",
+    role: "Creator · Linux",
+    score: 1.2,
+    roast: "Your code runs on every server AI uses to replace developers. You are the foundation. Literally untouchable.",
+  },
 ];
 
-function ScoreColor(score: number) {
+function scoreColor(score: number) {
   if (score >= 8.5) return "text-red-500";
   if (score >= 7.0) return "text-orange-500";
-  return "text-yellow-500";
+  if (score >= 5.0) return "text-yellow-600";
+  return "text-green-600";
 }
 
 export default function Home() {
@@ -28,7 +79,12 @@ export default function Home() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!username.trim()) return;
-    const clean = username.replace("github.com/", "").replace("https://", "").replace("http://", "").replace("@", "").trim();
+    const clean = username
+      .replace(/^https?:\/\//i, "")
+      .replace(/^github\.com\//i, "")
+      .replace(/^@/, "")
+      .replace(/\/$/, "")
+      .trim();
     if (!clean) return;
     setLoading(true);
     router.push(`/roast/${clean}`);
@@ -82,8 +138,17 @@ export default function Home() {
           {/* Social proof */}
           <div className="flex items-center justify-center gap-2">
             <div className="flex -space-x-2">
-              {["bg-orange-400", "bg-blue-400", "bg-green-400", "bg-purple-400", "bg-red-400", "bg-yellow-400", "bg-pink-400", "bg-teal-400"].map((c, i) => (
-                <div key={i} className={`w-7 h-7 rounded-full ${c} border-2 border-[#F8F4ED]`} />
+              {FEATURED_PROFILES.slice(0, 8).map((p) => (
+                <div key={p.username} className="w-7 h-7 rounded-full border-2 border-[#F8F4ED] overflow-hidden bg-gray-200">
+                  <Image
+                    src={`https://github.com/${p.username}.png?size=28`}
+                    alt={p.name}
+                    width={28}
+                    height={28}
+                    className="w-full h-full object-cover"
+                    unoptimized
+                  />
+                </div>
               ))}
             </div>
             <span className="text-sm text-gray-500 font-mono">+2,847 developers judged</span>
@@ -94,7 +159,7 @@ export default function Home() {
         <div className="grid grid-cols-3 gap-4 mb-16">
           {[
             { num: "01", label: "DROP YOUR\nGITHUB" },
-            { num: "02", label: "AI SCANS\nYOUR CODE" },
+            { num: "02", label: "AI READS\nYOUR REPOS" },
             { num: "03", label: "GET YOUR\nTHREAT LEVEL" },
           ].map((step) => (
             <div key={step.num} className="border border-gray-200 bg-white p-6 text-center">
@@ -104,18 +169,47 @@ export default function Home() {
           ))}
         </div>
 
-        {/* Recently Judged */}
+        {/* Featured Profiles */}
         <div className="mb-16">
-          <p className="text-xs font-mono uppercase tracking-[0.2em] text-gray-400 text-center mb-8">RECENTLY JUDGED</p>
+          <p className="text-xs font-mono uppercase tracking-[0.2em] text-gray-400 text-center mb-8">ALREADY JUDGED</p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {RECENTLY_JUDGED.map((item, i) => (
-              <div key={i} className="border border-gray-200 bg-white p-5">
-                <div className="flex items-start justify-between mb-2">
-                  <span className="font-bold text-sm text-gray-900">{item.role}, {item.yoe} YOE</span>
-                  <span className={`font-bold font-mono text-lg ${ScoreColor(item.score)}`}>{item.score}</span>
+            {FEATURED_PROFILES.map((profile) => (
+              <button
+                key={profile.username}
+                onClick={() => router.push(`/roast/${profile.username}`)}
+                className="border border-gray-200 bg-white p-5 text-left hover:border-gray-400 transition-colors group w-full"
+              >
+                {/* Profile header */}
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="w-10 h-10 rounded-full overflow-hidden bg-gray-100 flex-shrink-0 border border-gray-200">
+                    <Image
+                      src={`https://github.com/${profile.username}.png?size=80`}
+                      alt={profile.name}
+                      width={40}
+                      height={40}
+                      className="w-full h-full object-cover"
+                      unoptimized
+                    />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="font-bold text-sm text-gray-900 truncate">{profile.name}</div>
+                    <div className="text-xs text-gray-400 font-mono truncate">@{profile.username} · {profile.role}</div>
+                  </div>
+                  <div className={`font-bold font-mono text-xl flex-shrink-0 ${scoreColor(profile.score)}`}>
+                    {profile.score}
+                  </div>
                 </div>
-                <p className="text-gray-500 text-sm leading-relaxed">&ldquo;{item.roast}&rdquo;</p>
-              </div>
+
+                {/* Roast */}
+                <p className="text-gray-500 text-sm leading-relaxed">
+                  &ldquo;{profile.roast}&rdquo;
+                </p>
+
+                {/* Hover CTA */}
+                <p className="text-xs font-mono text-gray-300 group-hover:text-orange-400 mt-3 transition-colors tracking-wider uppercase">
+                  See full roast →
+                </p>
+              </button>
             ))}
           </div>
         </div>
