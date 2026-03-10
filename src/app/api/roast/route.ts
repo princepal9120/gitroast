@@ -342,6 +342,9 @@ export async function POST(req: NextRequest) {
     baseScore = Math.max(1.5, Math.min(9.8, baseScore));
     const baseScoreRounded = Math.round(baseScore * 10) / 10;
 
+    // Notable developer boosts for sub-scores
+    const notableBoost = isVeryNotable ? 1.5 : isNotable ? 0.7 : 0;
+
     // Sub-score bases (each independently derived)
     const techBase = Math.max(1.5, Math.min(9.5, Math.round((
       5.0
@@ -351,6 +354,7 @@ export async function POST(req: NextRequest) {
       - (hasHighSignal ? 1.0 : 0)
       - (languageDiversityCount >= 4 ? 0.4 : 0)
       - recent30Bonus * 0.5
+      - notableBoost               // notable devs get tech skills bonus
     ) * 10) / 10));
     const aiBase = Math.max(1.5, Math.min(9.5, Math.round((
       5.5
@@ -359,6 +363,7 @@ export async function POST(req: NextRequest) {
       - (pushEventCount > 20 ? 0.8 : pushEventCount > 10 ? 0.4 : 0)
       - recent30Bonus * 0.6
       - starBonus * 0.3
+      - notableBoost * 0.5
     ) * 10) / 10));
     const moatBase = Math.max(1.5, Math.min(9.5, Math.round((
       5.0
@@ -366,6 +371,7 @@ export async function POST(req: NextRequest) {
       - starBonus * 0.5
       - (deployedCount > 1 ? 0.6 : 0)
       - (user.followers > 100 ? 0.3 : 0)
+      - notableBoost * 1.2         // notable = real career moat
     ) * 10) / 10));
     const mktBase = Math.max(1.5, Math.min(9.5, Math.round((
       5.0
@@ -375,18 +381,25 @@ export async function POST(req: NextRequest) {
       + (zeroStarRatio * 1.0)
       + (accountAgeYears > 3 && totalStars < 30 ? 0.8 : 0)
       - starBonus * 0.4
+      - notableBoost * 1.0         // notable = strong market positioning
     ) * 10) / 10));
+
+    // Notable developer flag — context for the AI
+    const isNotable = user.followers > 2000 || totalStars > 5000;
+    const isVeryNotable = user.followers > 10000 || totalStars > 20000;
 
     // === BUILD PROMPT ===
     const prompt = `You are a brutally honest senior software engineer and tech career advisor. Your job: give this developer a REAL, HONEST assessment of their AI replaceability. Not generic cheerleading. Not hollow cruelty. Actual truth — the kind a mentor would give if they stopped sugarcoating.
 
 Read everything below carefully. Reference SPECIFIC things you see. Be like a senior dev doing a real code review of someone's career.
 
-IMPORTANT — SCORING RULES:
-The system has pre-computed algorithmic base scores from real data metrics. You MUST use these as anchors and adjust by ±1.5 max based on qualitative things you observe in READMEs and commits. Do NOT default to 7.x for everyone.
+${isVeryNotable ? `⚠️ VERY NOTABLE DEVELOPER: This person has ${user.followers.toLocaleString()} followers and ${totalStars.toLocaleString()} stars. They are a recognized industry figure. Their real work likely lives in organization repos (companies, OSS orgs), NOT just their personal profile. Do NOT call them a "repo hoarder" or "tutorial collector" — that would be embarrassing and factually wrong. Their personal repo count being low means they've been building at scale in orgs. Roast them on their actual positioning, legacy concerns, or real weaknesses — not on repo count.
+` : isNotable ? `⚠️ NOTABLE DEVELOPER: ${user.followers.toLocaleString()} followers / ${totalStars.toLocaleString()} stars — this person has real community traction. Factor that into your assessment. Their moat is real. Roast specific weaknesses, not their overall profile.
+` : ""}IMPORTANT — SCORING RULES:
+The system has pre-computed algorithmic base scores from real data metrics. You MUST use these as anchors and adjust by ±1.5 max based on qualitative things you observe in READMEs and commits. Do NOT anchor everyone to 7.x.
 
-ALGORITHMIC BASE SCORES (anchor these, adjust ±1.5 max):
-Active builder signals factored in: ${recentlyPushed30.length} repos pushed in last 30d, ${pushEventCount} push events, ${recentlyCreated90.length} new repos in 90d, ${daysSinceActive}d since last activity.
+ALGORITHMIC BASE SCORES (use as anchors, adjust ±1.5 max):
+Active builder signals: ${recentlyPushed30.length} repos pushed last 30d, ${pushEventCount} push events, ${recentlyCreated90.length} new repos in 90d, inactive ${daysSinceActive}d.
 - Overall replaceability: ${baseScoreRounded}/10
 - Technical Skills: ${Math.round(techBase * 10) / 10}/10  
 - AI Adaptability: ${Math.round(aiBase * 10) / 10}/10
@@ -468,27 +481,31 @@ YOUR TASK — WRITE THE HONEST VERDICT
 ==================================================
 Write like a senior engineer who's seen thousands of GitHub profiles. Be honest, specific, and a little savage — but grounded in facts you actually read above.
 
-Reference their profile README if it reveals things about them (skills they claim, what they're working on, etc.).
-Reference actual repo names, commit messages, README content.
-If something is actually good, say so (but don't sugarcoat the bad).
-The "roast" should feel like: "I read your whole GitHub, here's the truth."
+RULES:
+- Reference their profile README claims vs reality. Call out the gap.
+- Name actual repos, commit messages, specific patterns you saw.
+- For notable developers (high followers/stars): roast their specific blind spots, not their overall status. Don't insult someone famous with wrong facts.
+- The roast should feel like: "I read your whole GitHub. Here's what I actually think."
+- No generic lines. Every sentence should only fit THIS person's profile.
+- If they're truly exceptional, say so — then find the real weakness.
 
-Scoring (0-10 where 10 = fully replaceable by AI RIGHT NOW):
-- High (8-10): CRUD developer, tutorial repos, generic skills, no unique output
-- Medium (5-7): Decent skills but nothing distinctive, some real projects
-- Low (0-4): Clear specialization, unique projects, things AI can't replicate
+Scoring context (0-10, 10 = AI replaces them tomorrow):
+- 1-3: Real specialist. Distinct output. Hard to replicate.
+- 4-6: Competent but generic. Some real projects, some filler.
+- 7-9: Mostly tutorial/CRUD work. Low moat. AI is coming for them.
+- 9-10: Already functionally replaced. Just doesn't know it yet.
 
-The scores are ALREADY DECIDED by the algorithm — do NOT include score numbers in your response. Only write the text.
+The scores are ALREADY DECIDED by the algorithm — do NOT include numbers in your response. Only write the text fields.
 
-Return ONLY valid JSON (no markdown, no backticks, nothing else):
+Return ONLY valid JSON (no markdown, no backticks):
 {
-  "threatTitle": "YOUR CREATIVE TITLE HERE (ALL CAPS, 2-4 words, sardonic — e.g. 'GLORIFIED YAML MONKEY', 'PROFESSIONAL REPO HOARDER', 'TUTORIAL SPEED RUN CHAMPION')",
-  "mainRoast": "3-5 sentences. Reference specific repo names, profile README claims vs reality, actual commit messages you saw. Honest and savage. Like a mentor who's done sugarcoating.",
+  "threatTitle": "ALL CAPS, 2-5 words, sardonic job title that fits THIS profile specifically (e.g. 'GLORIFIED YAML MONKEY', 'REPO ABANDONMENT ARTIST', 'TUTORIAL SPEED RUN CHAMPION', 'INFRASTRUCTURE LEGACY LOCK-IN')",
+  "mainRoast": "3-5 sentences. Name specific repos, README claims, commit patterns you actually read. Honest, a little savage, grounded in real data. No filler.",
   "subDescriptions": {
-    "technicalSkills": "One specific, honest line referencing their actual languages/repos/code quality you read",
-    "aiAdaptability": "One specific line about their AI-era readiness based on what you actually saw in their repos",
-    "careerMoat": "One line about distinctiveness — or lack thereof — based on their actual portfolio",
-    "marketPositioning": "One line about market value based on their traction, followers, deployed work you saw"
+    "technicalSkills": "One sharp line referencing their actual stack, languages, and code quality signals you saw",
+    "aiAdaptability": "One specific line — are they using AI tools? Building AI things? Or frozen in 2019?",
+    "careerMoat": "One line about what makes them distinctive (or doesn't) based on their actual portfolio",
+    "marketPositioning": "One line about market visibility — followers, deployed work, personal brand signals"
   }
 }`;
 
