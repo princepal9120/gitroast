@@ -259,7 +259,7 @@ export default function RoastPage() {
         <div className={`border p-5 mb-6 ${data.isEnhanced ? "border-orange-300 bg-orange-50" : "border-gray-200 bg-white"}`}>
           {data.isEnhanced && (
             <div className="flex items-center gap-2 mb-3 pb-3 border-b border-orange-200">
-              <span className="text-xs font-mono uppercase tracking-widest text-orange-600 font-bold">🔒 ENHANCED ANALYSIS — PRIVATE REPOS INCLUDED</span>
+              <span className="text-xs font-mono uppercase tracking-widest text-orange-600 font-bold">🔒 ENHANCED — PRIVATE REPOS INCLUDED</span>
             </div>
           )}
           <div className="flex items-start gap-4">
@@ -276,16 +276,16 @@ export default function RoastPage() {
             </div>
             {/* Info */}
             <div className="flex-1 min-w-0">
-              <div className="flex items-start justify-between gap-2">
-                <div>
-                  <p className="font-bold text-gray-900 text-lg leading-tight">{data.name}</p>
-                  <p className="text-sm text-gray-400 font-mono">@{data.username}</p>
+              <div className="flex items-start justify-between gap-2 flex-wrap">
+                <div className="min-w-0">
+                  <p className="font-bold text-gray-900 text-base sm:text-lg leading-tight truncate">{data.name}</p>
+                  <p className="text-sm text-gray-400 font-mono truncate">@{data.username}</p>
                 </div>
                 <a
                   href={`https://github.com/${data.username}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-xs font-mono text-gray-400 hover:text-gray-700 border border-gray-200 px-2 py-1 whitespace-nowrap transition-colors"
+                  className="text-xs font-mono text-gray-400 hover:text-gray-700 border border-gray-200 px-2 py-1 whitespace-nowrap transition-colors flex-shrink-0"
                 >
                   GitHub ↗
                 </a>
@@ -317,12 +317,12 @@ export default function RoastPage() {
 
         {/* Main card */}
         <div
-          className={`border border-gray-200 bg-white p-8 mb-6 transition-all duration-500 ${showContent ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"}`}
+          className={`border border-gray-200 bg-white p-5 sm:p-8 mb-6 transition-all duration-500 ${showContent ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"}`}
         >
           {/* Score */}
           <p className="text-xs font-mono uppercase tracking-[0.2em] text-gray-400 text-center mb-4">AI THREAT LEVEL</p>
           <div className={`text-center mb-1`}>
-            <span className={`font-display font-black text-8xl ${scoreColor}`}>
+            <span className={`font-display font-black text-7xl sm:text-8xl ${scoreColor}`}>
               {showContent ? <AnimatedScore target={data.overallScore} /> : "0.0"}
             </span>
           </div>
