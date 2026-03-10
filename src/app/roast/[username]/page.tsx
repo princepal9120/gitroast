@@ -185,8 +185,10 @@ export default function RoastPage() {
   };
 
   const shareOnLinkedIn = () => {
-    // LinkedIn sharing with pre-filled text
-    const liUrl = `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(profileUrl)}&summary=${encodeURIComponent(linkedInShareText)}`;
+    // shareArticle supports pre-filled title + summary (share-offsite ignores those params)
+    const liTitle = data ? `AI gave me ${data.overallScore}/10 replaceability — "${data.threatTitle}"` : "My AI Threat Score";
+    const liSummary = data ? `${data.mainRoast.slice(0, 200)}...` : "";
+    const liUrl = `https://www.linkedin.com/shareArticle?mini=true&url=${encodeURIComponent(profileUrl)}&title=${encodeURIComponent(liTitle)}&summary=${encodeURIComponent(liSummary)}&source=GitRoast`;
     window.open(liUrl, "_blank");
     setShowShareModal(false);
   };
