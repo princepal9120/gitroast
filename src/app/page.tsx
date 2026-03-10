@@ -7,61 +7,96 @@ import Image from "next/image";
 // Real GitHub profiles — pre-scored with savage but accurate roast lines
 const FEATURED_PROFILES = [
   {
+    username: "torvalds",
+    name: "Linus Torvalds",
+    role: "Creator · Linux & Git",
+    score: 1.2,
+    roast: "Your code runs on every server AI uses to replace other developers. You ARE the infrastructure. Genuinely untouchable.",
+  },
+  {
+    username: "karpathy",
+    name: "Andrej Karpathy",
+    role: "AI Researcher · OpenAI, Tesla",
+    score: 1.3,
+    roast: "You wrote the textbook on neural networks, then went to build the exact thing replacing everyone else. Poetic, really.",
+  },
+  {
     username: "rauchg",
     name: "Guillermo Rauch",
     role: "CEO · Vercel",
     score: 1.8,
-    roast: "Built the framework the entire internet runs on. AI deploys on Next.js too — you're the landlord, not the tenant.",
-  },
-  {
-    username: "gaearon",
-    name: "Dan Abramov",
-    role: "React Core Team",
-    score: 2.3,
-    roast: "Invented useEffect and then spent 5 years writing blog posts explaining why everyone used it wrong. Including you.",
+    roast: "Made deploying so easy that juniors ship to prod before they know what prod means. You're the landlord of the modern web.",
   },
   {
     username: "yyx990803",
     name: "Evan You",
     role: "Creator · Vue.js",
     score: 1.5,
-    roast: "Built a whole framework because he wanted React without the Facebook smell. It worked. Annoyingly.",
+    roast: "Built a whole framework because he wanted React without the Facebook smell. It worked. 200k GitHub stars say so.",
   },
   {
     username: "sindresorhus",
     name: "Sindre Sorhus",
-    role: "OSS · 1000+ packages",
+    role: "OSS · 1,000+ packages",
     score: 2.1,
-    roast: "1,000+ npm packages and AI still can't replicate his taste. You install his work without knowing his name.",
+    roast: "1,000+ npm packages and AI still can't replicate his taste. You've been installing his work without knowing his name.",
+  },
+  {
+    username: "mojombo",
+    name: "Tom Preston-Werner",
+    role: "Co-founder · GitHub",
+    score: 1.8,
+    roast: "Co-built the platform everyone uses to pretend they're productive. You literally can't replace the person who made your profile exist.",
+  },
+  {
+    username: "gaearon",
+    name: "Dan Abramov",
+    role: "React Core Team",
+    score: 2.3,
+    roast: "Invented useEffect and spent 5 years writing essays explaining why everyone used it wrong. The essay still applies to you.",
+  },
+  {
+    username: "kamranahmedse",
+    name: "Kamran Ahmed",
+    role: "Creator · Developer Roadmap",
+    score: 2.4,
+    roast: "Built the Roadmap because developers were too lost to find a path. Now AI just tells them what to learn anyway.",
+  },
+  {
+    username: "donnemartin",
+    name: "Donne Martin",
+    role: "System Design Primer",
+    score: 2.8,
+    roast: "Made System Design Primer because nobody could explain it clearly. 200k stars later, AI still references your repo.",
   },
   {
     username: "tj",
     name: "TJ Holowaychuk",
     role: "Creator · Express, Koa",
     score: 1.9,
-    roast: "Built Express.js, Koa, and half the Node ecosystem — then disappeared to write Go. The most productive ghost in tech.",
+    roast: "Built Express, Koa, and half of Node.js ecosystem then disappeared to write Go. The most productive ghost in tech history.",
   },
   {
-    username: "addyosmani",
-    name: "Addy Osmani",
-    role: "Engineering Manager · Google",
-    score: 2.8,
-    roast: "Been optimizing web performance since before ChatGPT knew what a Lighthouse score was. Still going.",
+    username: "wesbos",
+    name: "Wes Bos",
+    role: "Educator · JavaScript",
+    score: 3.8,
+    roast: "Turned teaching JavaScript into a 7-figure business before AI could do it for free. Timing is a real skill.",
   },
   {
-    username: "kentcdodds",
-    name: "Kent C. Dodds",
-    role: "Educator · Testing/React",
-    score: 3.5,
-    roast: "Built an entire career teaching testing best practices to developers who still skip tests. Including you.",
+    username: "steven-tey",
+    name: "Steven Tey",
+    role: "Founder · Dub.co",
+    score: 3.2,
+    roast: "Building so deep in the Vercel ecosystem that his entire portfolio is a Next.js demo. Beautiful, but also a single point of failure.",
   },
-  {
-    username: "torvalds",
-    name: "Linus Torvalds",
-    role: "Creator · Linux",
-    score: 1.2,
-    roast: "Your code runs on every server AI uses to replace developers. You are the foundation. Literally untouchable.",
-  },
+];
+
+// Shown in the social proof avatar strip (all 20)
+const ALL_PROFILES_STRIP = [
+  "torvalds","karpathy","rauchg","yyx990803","sindresorhus","gaearon",
+  "kamranahmedse","donnemartin","tj","wesbos","kentcdodds","paulirish",
+  "mojombo","steven-tey","JakeWharton","florinpop17","kennethreitz","trevnorris",
 ];
 
 function scoreColor(score: number) {
@@ -138,11 +173,11 @@ export default function Home() {
           {/* Social proof */}
           <div className="flex items-center justify-center gap-2">
             <div className="flex -space-x-2">
-              {FEATURED_PROFILES.slice(0, 8).map((p) => (
-                <div key={p.username} className="w-7 h-7 rounded-full border-2 border-[#F8F4ED] overflow-hidden bg-gray-200">
+              {ALL_PROFILES_STRIP.slice(0, 10).map((u) => (
+                <div key={u} className="w-7 h-7 rounded-full border-2 border-[#F8F4ED] overflow-hidden bg-gray-200">
                   <Image
-                    src={`https://github.com/${p.username}.png?size=28`}
-                    alt={p.name}
+                    src={`https://github.com/${u}.png?size=28`}
+                    alt={u}
                     width={28}
                     height={28}
                     className="w-full h-full object-cover"
@@ -171,7 +206,8 @@ export default function Home() {
 
         {/* Featured Profiles */}
         <div className="mb-16">
-          <p className="text-xs font-mono uppercase tracking-[0.2em] text-gray-400 text-center mb-8">ALREADY JUDGED</p>
+          <p className="text-xs font-mono uppercase tracking-[0.2em] text-gray-400 text-center mb-2">ALREADY JUDGED</p>
+          <p className="text-center text-xs text-gray-400 font-mono mb-8">Click any card to see their full roast</p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {FEATURED_PROFILES.map((profile) => (
               <button
