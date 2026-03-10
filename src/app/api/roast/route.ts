@@ -174,10 +174,25 @@ export async function POST(req: NextRequest) {
     oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
     const staleRepos = ownRepos.filter((r) => new Date(r.pushed_at) < oneYearAgo);
 
-    // Recent repos (last 3 months)
+    // Recent repos (last 3 months pushed)
     const threeMonthsAgo = new Date();
     threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
     const recentActivity = ownRepos.filter((r) => new Date(r.pushed_at) > threeMonthsAgo);
+
+    // Last 30 days
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    const recentlyPushed30 = ownRepos.filter((r) => new Date(r.pushed_at) > thirtyDaysAgo);
+
+    // Repos created in last 90 days (new project signal)
+    const recentlyCreated90 = ownRepos.filter((r) => new Date(r.created_at) > threeMonthsAgo);
+
+    // Push event count from events feed (consistency signal)
+    const pushEventCount = events.filter((e) => e.type === "PushEvent").length;
+
+    // Language diversity
+    const uniqueLanguages = new Set(ownRepos.map((r) => r.language).filter(Boolean));
+    const languageDiversityCount = uniqueLanguages.size;
 
     // Account age
     const accountAgeYears = Math.floor(
@@ -246,57 +261,81 @@ export async function POST(req: NextRequest) {
     // Score = 0 (impossible to replace) → 10 (already replaced)
     let baseScore = 5.0;
 
-    // === PENALIZE (more replaceable) ===
+    // === PENALIZE (more replaceable — pushes score UP) ===
+
     // Tutorial/learning repo ratio
     const tutorialRatio = ownRepos.length > 0 ? suspiciousRepos.length / ownRepos.length : 0;
     baseScore += tutorialRatio * 2.5; // up to +2.5
 
-    // High % of zero-star repos
+    // High % of zero-star repos (invisible to the internet)
     const zeroStarRatio = ownRepos.length > 0 ? zeroStarRepos / ownRepos.length : 0;
-    baseScore += zeroStarRatio * 1.5; // up to +1.5
+    baseScore += zeroStarRatio * 1.0; // up to +1.0
 
-    // Stale repo ratio
+    // Stale repo ratio (abandoned = replaceable)
     const staleRatio = ownRepos.length > 0 ? staleRepos.length / ownRepos.length : 0;
-    baseScore += staleRatio * 0.8; // up to +0.8
+    baseScore += staleRatio * 1.5; // up to +1.5 (increased from 0.8)
 
-    // Long account but few stars → wasted time
+    // INACTIVITY — biggest signal, now properly weighted
+    if (daysSinceActive > 14) baseScore += 0.3;   // 2 weeks quiet
+    if (daysSinceActive > 30) baseScore += 0.5;   // month gone
+    if (daysSinceActive > 90) baseScore += 0.8;   // 3 months = concerning
+    if (daysSinceActive > 180) baseScore += 0.8;  // 6 months = almost gone
+    if (daysSinceActive > 365) baseScore += 1.0;  // 1yr+ = ghost (total up to +3.4)
+
+    // Long account but few stars → wasted years
     const expectedStarsForAge = accountAgeYears * 15;
     if (totalStars < expectedStarsForAge) {
-      baseScore += Math.min(1.0, (expectedStarsForAge - totalStars) / expectedStarsForAge);
+      baseScore += Math.min(0.8, (expectedStarsForAge - totalStars) / expectedStarsForAge);
     }
 
-    // Lots of forks vs own work
+    // Fork-heavy profile (follower, not builder)
     const forkRatio = repos.length > 0 ? forkRepos.length / repos.length : 0;
     if (forkRatio > 0.4) baseScore += 0.5;
+    if (forkRatio > 0.6) baseScore += 0.5; // extra penalty for fork farms
 
-    // Inactive recently
-    if (daysSinceActive > 90) baseScore += 0.5;
-    if (daysSinceActive > 180) baseScore += 0.5;
+    // Single-language developer (narrow moat)
+    if (ownRepos.length > 5 && languageDiversityCount <= 1) baseScore += 0.5;
 
-    // === REWARD (less replaceable) ===
-    // Real stars signal real impact — calibrated: 250 stars = 1pt, 500 = 2pt max
+    // === REWARD (less replaceable — pushes score DOWN) ===
+
+    // Real stars = real impact (calibrated: 250 = 1pt, 500 = 2pt max)
     const starBonus = Math.min(2.0, totalStars / 250);
     baseScore -= starBonus;
 
-    // Deployed/live projects show shipping mentality
+    // Deployed/live projects (shipping mentality) — boosted
     const deployedCount = ownRepos.filter((r) => r.homepage && r.homepage.length > 5).length;
-    baseScore -= Math.min(0.6, deployedCount * 0.15);
+    baseScore -= Math.min(1.5, deployedCount * 0.3); // was 0.6 max / 0.15 each
 
-    // Follower traction (calibrated)
-    if (user.followers > 100) baseScore -= 0.2;
-    if (user.followers > 500) baseScore -= 0.3;
-    if (user.followers > 2000) baseScore -= 0.5;
+    // Follower traction
+    if (user.followers > 100) baseScore -= 0.3;
+    if (user.followers > 500) baseScore -= 0.4;
+    if (user.followers > 2000) baseScore -= 0.6;
 
-    // High-signal languages (systems, infra, ML)
-    const highSignalLangs = ["Rust", "Go", "Haskell", "Erlang", "C", "C++", "Zig", "CUDA", "Assembly"];
+    // ACTIVE BUILDING RECENTLY — biggest positive signal (rewarding daily builders)
+    // Repos pushed in last 30 days
+    const recent30Bonus = Math.min(1.5, recentlyPushed30.length * 0.3);
+    baseScore -= recent30Bonus; // up to -1.5 for 5+ repos active in last month
+
+    // New projects created recently (experimentation)
+    const newProjectBonus = Math.min(0.8, recentlyCreated90.length * 0.2);
+    baseScore -= newProjectBonus; // up to -0.8
+
+    // Push event density = consistency signal (how often are you actually committing)
+    if (pushEventCount > 10) baseScore -= 0.3;
+    if (pushEventCount > 25) baseScore -= 0.4;
+    if (pushEventCount > 50) baseScore -= 0.5; // up to -1.2 total
+
+    // High-signal languages (systems, infra, ML, specialized)
+    const highSignalLangs = ["Rust", "Go", "Haskell", "Erlang", "C", "C++", "Zig", "CUDA", "Assembly", "Solidity"];
     const hasHighSignal = topLanguages.some((l) => highSignalLangs.some((h) => l.startsWith(h)));
-    if (hasHighSignal) baseScore -= 0.4;
+    if (hasHighSignal) baseScore -= 0.5;
 
-    // Has a personal website/blog
-    if (user.blog && user.blog.length > 5) baseScore -= 0.15;
+    // Language diversity (multi-language = harder to replace)
+    if (languageDiversityCount >= 3) baseScore -= 0.2;
+    if (languageDiversityCount >= 5) baseScore -= 0.3;
 
-    // Recent activity shows momentum
-    if (recentActivity.length > 5) baseScore -= 0.2;
+    // Has a personal website/blog (personal brand)
+    if (user.blog && user.blog.length > 5) baseScore -= 0.2;
 
     // Clamp 1.5–9.8 and round to 1 decimal
     baseScore = Math.max(1.5, Math.min(9.8, baseScore));
@@ -308,20 +347,23 @@ export async function POST(req: NextRequest) {
       - starBonus * 0.7
       + tutorialRatio * 1.5
       + zeroStarRatio * 0.8
-      - (hasHighSignal ? 0.8 : 0)
+      - (hasHighSignal ? 1.0 : 0)
+      - (languageDiversityCount >= 4 ? 0.4 : 0)
+      - recent30Bonus * 0.5
     ) * 10) / 10));
     const aiBase = Math.max(1.5, Math.min(9.5, Math.round((
       5.5
-      + staleRatio * 1.0
-      + (daysSinceActive > 180 ? 0.8 : 0)
-      - (recentActivity.length > 3 ? 0.4 : 0)
+      + staleRatio * 1.5
+      + (daysSinceActive > 180 ? 1.2 : daysSinceActive > 90 ? 0.6 : 0)
+      - (pushEventCount > 20 ? 0.8 : pushEventCount > 10 ? 0.4 : 0)
+      - recent30Bonus * 0.6
       - starBonus * 0.3
     ) * 10) / 10));
     const moatBase = Math.max(1.5, Math.min(9.5, Math.round((
       5.0
       + tutorialRatio * 2.0
       - starBonus * 0.5
-      - (deployedCount > 1 ? 0.4 : 0)
+      - (deployedCount > 1 ? 0.6 : 0)
       - (user.followers > 100 ? 0.3 : 0)
     ) * 10) / 10));
     const mktBase = Math.max(1.5, Math.min(9.5, Math.round((
@@ -342,7 +384,8 @@ Read everything below carefully. Reference SPECIFIC things you see. Be like a se
 IMPORTANT — SCORING RULES:
 The system has pre-computed algorithmic base scores from real data metrics. You MUST use these as anchors and adjust by ±1.5 max based on qualitative things you observe in READMEs and commits. Do NOT default to 7.x for everyone.
 
-ALGORITHMIC BASE SCORES (anchor these, adjust ±1.5):
+ALGORITHMIC BASE SCORES (anchor these, adjust ±1.5 max):
+Active builder signals factored in: ${recentlyPushed30.length} repos pushed in last 30d, ${pushEventCount} push events, ${recentlyCreated90.length} new repos in 90d, ${daysSinceActive}d since last activity.
 - Overall replaceability: ${baseScoreRounded}/10
 - Technical Skills: ${Math.round(techBase * 10) / 10}/10  
 - AI Adaptability: ${Math.round(aiBase * 10) / 10}/10
@@ -380,7 +423,11 @@ Total stars on own work: ${totalStars}
 Repos with 0 stars: ${zeroStarRepos} out of ${ownRepos.length}
 Stale repos (1+ yr no push): ${staleRepos.length}
 Active repos (last 3 months): ${recentActivity.length}
+Active repos (last 30 days): ${recentlyPushed30.length}
+New repos created (last 90 days): ${recentlyCreated90.length}
+Push events in feed (consistency): ${pushEventCount}
 Days since any GitHub activity: ${daysSinceActive}
+Language count across repos: ${languageDiversityCount}
 Top languages: ${topLanguages.join(", ") || "none"}
 
 Most starred repos:
