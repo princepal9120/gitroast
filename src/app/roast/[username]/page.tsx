@@ -448,8 +448,19 @@ export default function RoastPage() {
 
       </main>
 
-      <footer className="border-t border-gray-200 py-6 text-center mt-8">
+      <footer className="border-t border-gray-200 py-6 text-center mt-8 space-y-2">
         <p className="text-xs font-mono text-gray-400 tracking-wider uppercase">GitRoast — Powered by Groq + GitHub API</p>
+        <p className="text-xs font-mono text-gray-400">
+          Built by{" "}
+          <a
+            href="https://princepal.dev"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-gray-700 hover:text-orange-500 transition-colors underline underline-offset-2"
+          >
+            princepal.dev
+          </a>
+        </p>
       </footer>
     </div>
   );
