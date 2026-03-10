@@ -231,8 +231,10 @@ export default function Home() {
                     <div className="font-bold text-sm text-gray-900 truncate">{profile.name}</div>
                     <div className="text-xs text-gray-400 font-mono truncate">@{profile.username} · {profile.role}</div>
                   </div>
-                  <div className={`font-bold font-mono text-lg flex-shrink-0 ${scoreColor(profile.score)} text-right`}>
-                    <span className="text-xs text-gray-300">~</span>{profile.score}
+                  <div className="flex-shrink-0">
+                    <span className="text-xs font-mono text-gray-300 border border-gray-200 px-2 py-0.5 uppercase tracking-wider">
+                      click to judge
+                    </span>
                   </div>
                 </div>
 

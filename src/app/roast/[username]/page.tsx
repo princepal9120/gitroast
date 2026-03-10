@@ -136,8 +136,10 @@ export default function RoastPage() {
     fetchRoast();
   }, [username]);
 
+  const SITE_URL = "https://gitroast.princepal.dev";
+  const profileUrl = `${SITE_URL}/roast/${data?.username || username}`;
   const shareText = data
-    ? `I got roasted by AI. My threat score: ${data.overallScore}/10 — "${data.threatTitle}" 💀\n\nGet yours at gitroast-inky.vercel.app`
+    ? `I got roasted by AI. My threat score: ${data.overallScore}/10 — "${data.threatTitle}" 💀\n\nGet yours: ${profileUrl}`
     : "Get your AI threat level at GitRoast";
 
   const shareOnX = () => {
@@ -145,7 +147,7 @@ export default function RoastPage() {
   };
 
   const shareOnLinkedIn = () => {
-    window.open(`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent("https://gitroast-inky.vercel.app")}`, "_blank");
+    window.open(`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(profileUrl)}`, "_blank");
   };
 
   if (loading) {
@@ -333,22 +335,6 @@ export default function RoastPage() {
           </div>
         </div>
 
-        {/* CTA Banner */}
-        <div className={`mt-8 bg-gray-900 text-white p-8 text-center transition-all duration-500 delay-500 ${showContent ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"}`}>
-          <p className="text-xs font-mono uppercase tracking-[0.2em] text-orange-400 mb-3">TIRED OF BEING REPLACEABLE?</p>
-          <h3 className="font-display font-bold text-xl mb-2">Learn to Build AI Agents</h3>
-          <p className="text-gray-400 text-sm mb-6 leading-relaxed">
-            Stop being the API glue. Start building the agents that replace others.
-          </p>
-          <a
-            href="https://github.com/princepal9120"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-block border border-orange-500 text-orange-400 px-6 py-2.5 text-sm font-mono uppercase tracking-widest hover:bg-orange-500 hover:text-white transition-colors"
-          >
-            START BUILDING →
-          </a>
-        </div>
       </main>
 
       <footer className="border-t border-gray-200 py-6 text-center mt-8">
