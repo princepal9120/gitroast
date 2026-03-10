@@ -106,8 +106,16 @@ export async function POST(req: NextRequest) {
     ]);
 
     if (!userRes.ok) {
-      if (userRes.status === 404) return NextResponse.json({ error: "GitHub user not found" }, { status: 404 });
-      return NextResponse.json({ error: "GitHub API error" }, { status: 502 });
+      if (userRes.status === 404) return NextResponse.json({ error: "GitHub user not found. Double-check the username." }, { status: 404 });
+      if (userRes.status === 403) {
+        const rateLimitRemaining = userRes.headers.get("x-ratelimit-remaining");
+        if (rateLimitRemaining === "0") {
+          return NextResponse.json({ error: "GitHub API rate limit hit. Try again in ~60 minutes, or the owner can add a GitHub token to fix this permanently." }, { status: 429 });
+        }
+      }
+      const errBody = await userRes.text().catch(() => "");
+      console.error("GitHub API error:", userRes.status, errBody.slice(0, 200));
+      return NextResponse.json({ error: `GitHub API error (${userRes.status}). Try again in a moment.` }, { status: 502 });
     }
 
     const user: GitHubUser = await userRes.json();
