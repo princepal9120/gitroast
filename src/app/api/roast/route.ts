@@ -87,22 +87,35 @@ async function getLanguages(fullName: string, headers: HeadersInit): Promise<Rec
 
 export async function POST(req: NextRequest) {
   try {
-    const { username } = await req.json();
+    const { username, accessToken } = await req.json();
     if (!username) return NextResponse.json({ error: "Username required" }, { status: 400 });
+
+    // Auth priority: OAuth token (user) > env GITHUB_TOKEN (app) > unauthenticated
+    const token = accessToken || process.env.GITHUB_TOKEN;
+    const isOAuth = !!accessToken; // User's OAuth token = access to private repos
 
     const headers: HeadersInit = {
       "Accept": "application/vnd.github.v3+json",
       "User-Agent": "GitRoast/2.0",
     };
-    if (process.env.GITHUB_TOKEN) {
-      (headers as Record<string, string>)["Authorization"] = `token ${process.env.GITHUB_TOKEN}`;
+    if (token) {
+      (headers as Record<string, string>)["Authorization"] = `Bearer ${token}`;
     }
 
     // Fetch core data in parallel
+    // If authenticated with OAuth, use /user for private data, otherwise /users/{username}
+    const userEndpoint = isOAuth ? "https://api.github.com/user" : `https://api.github.com/users/${username}`;
+    const reposEndpoint = isOAuth
+      ? `https://api.github.com/user/repos?sort=pushed&per_page=100&visibility=all&affiliation=owner`
+      : `https://api.github.com/users/${username}/repos?sort=pushed&per_page=100`;
+    const eventsEndpoint = isOAuth
+      ? `https://api.github.com/users/${username}/events?per_page=50`
+      : `https://api.github.com/users/${username}/events/public?per_page=50`;
+
     const [userRes, reposRes, eventsRes] = await Promise.all([
-      fetch(`https://api.github.com/users/${username}`, { headers }),
-      fetch(`https://api.github.com/users/${username}/repos?sort=pushed&per_page=100`, { headers }),
-      fetch(`https://api.github.com/users/${username}/events/public?per_page=50`, { headers }),
+      fetch(userEndpoint, { headers }),
+      fetch(reposEndpoint, { headers }),
+      fetch(eventsEndpoint, { headers }),
     ]);
 
     if (!userRes.ok) {
@@ -495,6 +508,7 @@ Return ONLY valid JSON (no markdown, no backticks, nothing else):
       publicRepos: user.public_repos,
       totalStars,
       avatarUrl: user.avatar_url,
+      isEnhanced: isOAuth, // true = analyzed with private repo access
       ...roastData,
     });
   } catch (err) {

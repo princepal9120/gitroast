@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
+import { useSession } from "next-auth/react";
 
 interface SubScore {
   score: number;
@@ -20,6 +21,7 @@ interface RoastData {
   publicRepos: number;
   totalStars: number;
   avatarUrl: string;
+  isEnhanced: boolean;
   overallScore: number;
   threatTitle: string;
   mainRoast: string;
@@ -101,7 +103,10 @@ const SUB_SCORE_LABELS: Record<string, string> = {
 export default function RoastPage() {
   const params = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const { data: session } = useSession();
   const username = params.username as string;
+  const useAuth = searchParams.get("auth") === "1";
   const [data, setData] = useState<RoastData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -110,14 +115,22 @@ export default function RoastPage() {
 
   useEffect(() => {
     if (fetched.current) return;
+    // If expecting auth, wait for session to load
+    if (useAuth && session === undefined) return;
     fetched.current = true;
 
     const fetchRoast = async () => {
       try {
+        const body: { username: string; accessToken?: string } = { username };
+        // Pass OAuth token if user is authenticated and roasting their own profile
+        if (useAuth && session?.accessToken) {
+          body.accessToken = session.accessToken;
+        }
+
         const res = await fetch("/api/roast", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ username }),
+          body: JSON.stringify(body),
         });
         const json = await res.json();
         if (!res.ok) {
@@ -134,7 +147,7 @@ export default function RoastPage() {
     };
 
     fetchRoast();
-  }, [username]);
+  }, [username, useAuth, session]);
 
   const SITE_URL = "https://gitroast.princepal.dev";
   const profileUrl = `${SITE_URL}/roast/${data?.username || username}`;
@@ -206,7 +219,12 @@ export default function RoastPage() {
 
       <main className="max-w-xl mx-auto px-6 py-8">
         {/* Profile — real GitHub card */}
-        <div className="border border-gray-200 bg-white p-5 mb-6">
+        <div className={`border p-5 mb-6 ${data.isEnhanced ? "border-orange-300 bg-orange-50" : "border-gray-200 bg-white"}`}>
+          {data.isEnhanced && (
+            <div className="flex items-center gap-2 mb-3 pb-3 border-b border-orange-200">
+              <span className="text-xs font-mono uppercase tracking-widest text-orange-600 font-bold">🔒 ENHANCED ANALYSIS — PRIVATE REPOS INCLUDED</span>
+            </div>
+          )}
           <div className="flex items-start gap-4">
             {/* Real avatar */}
             <div className="w-16 h-16 rounded-sm overflow-hidden bg-gray-100 border border-gray-200 flex-shrink-0">

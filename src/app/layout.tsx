@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { SessionProvider } from "next-auth/react";
 
 export const metadata: Metadata = {
   title: "GitRoast — Will AI Replace You?",
@@ -28,7 +29,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className="min-h-screen bg-[#F8F4ED]">
-        {children}
+        <SessionProvider>{children}</SessionProvider>
       </body>
     </html>
   );
