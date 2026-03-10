@@ -226,20 +226,20 @@ export async function POST(req: NextRequest) {
           description: repo.description,
           language: repo.language,
           stars: repo.stargazers_count,
-          issues: repo.open_issues_count,
           homepage: repo.homepage,
-          topics: repo.topics?.slice(0, 5) || [],
+          topics: repo.topics?.slice(0, 3) || [],
           daysSincePush,
-          readme: readme ? readme.slice(0, 800) : null,
-          commits: commits.slice(0, 6),
-          languages: Object.keys(languages).slice(0, 5),
+          readme: readme ? readme.slice(0, 300) : null, // 300 chars max to save tokens
+          commits: commits.slice(0, 4),
+          languages: Object.keys(languages).slice(0, 3),
         };
       })
     );
 
     // All repo names + descriptions for pattern spotting
-    const allRepoSummary = ownRepos.slice(0, 50).map((r) =>
-      `${r.name}${r.description ? ` — "${r.description}"` : ""} (${r.stargazers_count}⭐, ${r.language || "?"}, pushed ${Math.floor((Date.now() - new Date(r.pushed_at).getTime()) / (1000 * 60 * 60 * 24))}d ago)`
+    // Limit to 25 repos and shorter format to save tokens
+    const allRepoSummary = ownRepos.slice(0, 25).map((r) =>
+      `${r.name} (${r.stargazers_count}⭐, ${r.language || "?"}, ${Math.floor((Date.now() - new Date(r.pushed_at).getTime()) / (1000 * 60 * 60 * 24))}d ago)`
     );
 
     // === ALGORITHMIC BASE SCORE (ensures genuine variance per profile) ===
@@ -445,10 +445,10 @@ Return ONLY valid JSON (no markdown, no backticks, nothing else):
 }`;
 
     const completion = await groq.chat.completions.create({
-      model: "llama-3.3-70b-versatile",
+      model: "llama-3.1-8b-instant", // 8b has separate daily limit from 70b
       messages: [{ role: "user", content: prompt }],
-      temperature: 0.85,
-      max_tokens: 1200,
+      temperature: 0.9,
+      max_tokens: 800,
     });
 
     const content = completion.choices[0]?.message?.content || "";
