@@ -28,6 +28,7 @@ interface GitHubRepo {
   description: string | null;
   updated_at: string;
   pushed_at: string;
+  created_at: string;
   size: number;
   open_issues_count: number;
   topics: string[];
