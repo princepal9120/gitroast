@@ -497,8 +497,12 @@ The scores are ALREADY DECIDED by the algorithm — do NOT include numbers in yo
 
 Return ONLY valid JSON (no markdown, no backticks):
 {
-  "threatTitle": "ALL CAPS, 2-5 words, sardonic job title that fits THIS profile specifically (e.g. 'GLORIFIED YAML MONKEY', 'REPO ABANDONMENT ARTIST', 'TUTORIAL SPEED RUN CHAMPION', 'INFRASTRUCTURE LEGACY LOCK-IN')",
-  "mainRoast": "3-5 sentences. Name specific repos, README claims, commit patterns you actually read. Honest, a little savage, grounded in real data. No filler.",
+  "threatTitle": ${isVeryNotable
+    ? `"ALL CAPS, 3-5 words. This person is an industry figure — the title must reflect their REAL risk or legacy trap. NOT a generic put-down. Think: what is their actual vulnerability in the AI era? Examples of the right level: 'SINGLE-FRAMEWORK EMPIRE', 'OSS LEGACY DEPENDENCY', 'FRAMEWORK KING OF YESTERDAY', 'ECOSYSTEM SINGLE POINT OF FAILURE'. Make it specific to who they actually are."`
+    : isNotable
+    ? `"ALL CAPS, 3-5 words. They have real traction — roast their specific blind spot, not their overall worth. Make it specific to their actual stack/niche."`
+    : `"ALL CAPS, 3-5 words. A sardonic job title that fits ONLY this specific person based on what you read. Do NOT use: 'Tutorial Speed Run Champion', 'Glorified YAML Monkey', 'Repo Hoarder', 'Code Accumulator' — those are clichés. Invent something specific to their actual repos/patterns."`},
+  "mainRoast": "3-5 sentences. Name specific repos, README claims, commit patterns you actually read. Honest, a little savage, grounded in real data. No filler. No generic lines.",
   "subDescriptions": {
     "technicalSkills": "One sharp line referencing their actual stack, languages, and code quality signals you saw",
     "aiAdaptability": "One specific line — are they using AI tools? Building AI things? Or frozen in 2019?",
@@ -524,7 +528,17 @@ Return ONLY valid JSON (no markdown, no backticks):
       careerMoat: `${ownRepos.length} repos, ${deployedCount} deployed, ${totalStars} total stars — the moat is thin.`,
       marketPositioning: `${user.followers} followers after ${accountAgeYears} years — ${user.followers < 50 ? "flying completely under the radar" : "some traction but not breakout"}.`,
     };
-    const fallbackTitle = tutorialRatio > 0.3 ? "TUTORIAL SPEED RUN CHAMPION" : staleRatio > 0.5 ? "REPO ABANDONMENT ARTIST" : totalStars < 10 ? "INVISIBLE TO THE INTERNET" : "GLORIFIED CODE ACCUMULATOR";
+    const fallbackTitle = isVeryNotable
+      ? "ECOSYSTEM SINGLE POINT OF FAILURE"
+      : isNotable
+      ? "INDUSTRY FIGURE, UNCERTAIN FUTURE"
+      : tutorialRatio > 0.3
+      ? "TUTORIAL GRAVEYARD CURATOR"
+      : staleRatio > 0.5
+      ? "REPO ABANDONMENT ARTIST"
+      : totalStars < 10
+      ? "INVISIBLE TO THE INTERNET"
+      : "PROFESSIONAL SIDE PROJECT HOARDER";
     const fallbackRoast = `${user.name || user.login} has been on GitHub for ${accountAgeYears} years and has ${totalStars} total stars across ${ownRepos.length} repos — that's ${(totalStars / Math.max(1, ownRepos.length)).toFixed(1)} stars per repo. ${topRepo ? `Their standout project "${topRepo.name}" ${topRepo.stars > 0 ? `has ${topRepo.stars} stars` : "has zero stars"}.` : ""} ${staleRepos.length > 5 ? `${staleRepos.length} repos haven't been touched in over a year.` : ""} ${suspiciousRepos.length > 3 ? `The tutorial graveyard (${suspiciousRepos.slice(0, 3).join(", ")}) speaks volumes.` : ""}`;
 
     let aiText: { threatTitle?: string; mainRoast?: string; subDescriptions?: Record<string, string> } = {};
